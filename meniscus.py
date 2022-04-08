@@ -104,11 +104,16 @@ if __name__ == '__main__':
 
     filename1 = "../CineFilesOriginal/moth23_2022-02-09_meh.cine"
     mens1 = []
-    video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=4619)
+    #video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=4619)
+    video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=2431)
     for row_coord in video_meniscus_rows:
         print(row_coord)
         mens1.append(row_coord)
     mens1 = np.array(mens1)
+
+    positions = np.arange(0, len(mens1))
+    pyplot.scatter(positions, mens1, marker='.')
+    pyplot.show()
     
 ##    filename2 = "../CineFilesOriginal/moth26_2022-02-15_freeflight.cine"
 ##    vid_men_rows = measure_meniscus_in_video(filename2, start=10)
@@ -125,9 +130,7 @@ if __name__ == '__main__':
 ##        print(row_coord)
 ##        mens3.append(row_coord)
 ##    mens3 = np.array(mens3)
-    positions = np.arange(0, len(mens1))
-    pyplot.scatter(positions, mens1, marker='.')
-    pyplot.show()
+    
     
 ##    filename = "../CineFilesOriginal/moth22_2022-02-04_Cine1.cine"
 ##    isol = isolate(filename, start=20)
