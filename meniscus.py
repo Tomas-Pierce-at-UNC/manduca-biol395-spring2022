@@ -2,7 +2,7 @@
 import cine
 import align
 import tube
-import row
+# import row
 from skimage import filters
 from skimage import io as skio
 from skimage import morphology as morpho
@@ -19,7 +19,7 @@ def isolate(filename: str, start=0, end=None):
         video = cine.Cine(filename)
         median = video.get_video_median()
         bounds = tube.get_bounds(median)
-        row_bounds = row.get_bounds(median)
+        # row_bounds = row.get_bounds(median)
         print(bounds)
         aligner = align.Aligner(median)
         if end is None:
@@ -35,7 +35,7 @@ def isolate(filename: str, start=0, end=None):
                 breakpoint()
             delta = aligned.astype(np.int16) - median.astype(np.int16)
             restricted_delta = tube.restrict_to_bounds(delta, bounds)
-            restricted_delta = row.restrict(restricted_delta, row_bounds)
+            #restricted_delta = row.restrict(restricted_delta, row_bounds)
             restricted_delta[restricted_delta > 0] = 0
             iso = filters.threshold_isodata(restricted_delta)
             low = restricted_delta < (iso * 1.5)
@@ -65,18 +65,20 @@ def get_canidate_masks(canidates: np.ndarray, scene: np.ndarray) -> list:
         masks.append(submask)
     return masks
 
+
 def get_width(region):
     major = region.axis_major_length
     orient = region.orientation
     return math.cos(orient) * major
 
+
 def select(canidate_masks):
     if len(canidate_masks) == 1:
         return canidate_masks[0]
     else:
-        widest = 0
+        widest = -1
         widemask = None
-        for i,mask in enumerate(canidate_masks):
+        for i, mask in enumerate(canidate_masks):
             regionprops = measure.regionprops(mask.astype(np.uint8))[0]
             width = get_width(regionprops)
             wideness = abs(width)
@@ -85,35 +87,61 @@ def select(canidate_masks):
                 widemask = mask
         return widemask
 
+
 def find_meniscus_row(meniscus_mask):
     img = meniscus_mask.astype(np.uint8)
     props = measure.regionprops(img)[0]
     centroid = props.centroid
     return centroid[0]
 
+
 def measure_meniscus_in_video(filename, start = 0, end = None):
     isolateds = isolate(filename, start, end)
+    i = start
     for mask in isolateds:
+        i += 1
         canidates = get_canidates(mask)
         can_masks = get_canidate_masks(canidates, mask)
         meniscus_mask = select(can_masks)
-        meniscus_row = find_meniscus_row(meniscus_mask)
+        try:
+            meniscus_row = find_meniscus_row(meniscus_mask)
+        except AttributeError:
+            skio.imshow(mask)
+            pyplot.show()
+            breakpoint()
         yield meniscus_row
 
-if __name__ == '__main__':
 
-    filename1 = "../CineFilesOriginal/moth23_2022-02-09_meh.cine"
-    mens1 = []
-    #video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=4619)
-    video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=2431)
-    for row_coord in video_meniscus_rows:
+def get_meniscus(filename: str, start: int = 0, end: int = None):
+    rows = measure_meniscus_in_video(filename,start,end)
+    mens = []
+    for row_coord in rows:
         print(row_coord)
-        mens1.append(row_coord)
-    mens1 = np.array(mens1)
+        mens.append(row_coord)
+    mens = np.array(mens)
+    if end is None:
+        xs = np.arange(0, len(mens))
+    else:
+        xs = np.arange(start, end)
+    return xs, mens
 
-    positions = np.arange(0, len(mens1))
-    pyplot.scatter(positions, mens1, marker='.')
+
+if __name__ == '__main__':
+    filename1 = "../CineFilesOriginal/moth23_2022-02-09_meh.cine"
+    xs1, mens1 = get_meniscus(filename1, 2131, 2431)
+    pyplot.scatter(xs1, mens1, marker='.')
     pyplot.show()
+##    mens1 = []
+##    #video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=4619)
+##    video_meniscus_rows = measure_meniscus_in_video(filename1, start=2131, end=2431)
+##    for row_coord in video_meniscus_rows:
+##        print(row_coord)
+##        mens1.append(row_coord)
+##    mens1 = np.array(mens1)
+##
+##    positions = np.arange(0, len(mens1))
+##    pyplot.scatter(positions, mens1, marker='.')
+##    pyplot.show()
     
 ##    filename2 = "../CineFilesOriginal/moth26_2022-02-15_freeflight.cine"
 ##    vid_men_rows = measure_meniscus_in_video(filename2, start=10)
