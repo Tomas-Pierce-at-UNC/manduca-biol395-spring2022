@@ -29,6 +29,11 @@ def isolate(filename: str, start: int = 0, end: int = None):
             skio.imshow(frame)
             pyplot.show()
             breakpoint()
+        except AttributeError:
+            print(filename)
+            print("Unable to align frame {}".format(i))
+            yield -1
+            continue
         delta = aligned.astype(np.int16) - median.astype(np.int16)
         restricted_delta = tube.restrict_to_bounds(delta, col_bounds)
         # restricted_delta = row.restrict(restricted_delta, row_bounds)
