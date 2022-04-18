@@ -84,7 +84,7 @@ def measure_proboscis_in_video(filename, start: int = 0, end: int = None):
 
 
 def get_proboscis(filename: str, start: int = 0, end: int = None):
-    mmnts = measure_proboscis_in_video(filename)
+    mmnts = measure_proboscis_in_video(filename, start, end)
     positions = []
     for row_coord in mmnts:
         print(row_coord)

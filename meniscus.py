@@ -26,13 +26,7 @@ def isolate(filename: str, start=0, end=None):
             end = video.image_count
         for i in range(start, end):
             frame = video.get_ith_image(i)
-            try:
-                aligned = aligner.align(frame)
-            except ValueError as e:
-                print(i)
-                skio.imshow(frame)
-                pyplot.show()
-                breakpoint()
+            aligned = aligner.align(frame)
             delta = aligned.astype(np.int16) - median.astype(np.int16)
             restricted_delta = tube.restrict_to_bounds(delta, bounds)
             #restricted_delta = row.restrict(restricted_delta, row_bounds)
@@ -103,17 +97,12 @@ def measure_meniscus_in_video(filename, start = 0, end = None):
         canidates = get_canidates(mask)
         can_masks = get_canidate_masks(canidates, mask)
         meniscus_mask = select(can_masks)
-        try:
-            meniscus_row = find_meniscus_row(meniscus_mask)
-        except AttributeError:
-            skio.imshow(mask)
-            pyplot.show()
-            breakpoint()
+        meniscus_row = find_meniscus_row(meniscus_mask)
         yield meniscus_row
 
 
 def get_meniscus(filename: str, start: int = 0, end: int = None):
-    rows = measure_meniscus_in_video(filename,start,end)
+    rows = measure_meniscus_in_video(filename, start, end)
     mens = []
     for row_coord in rows:
         print(row_coord)
