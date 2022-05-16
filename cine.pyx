@@ -4,7 +4,9 @@ import ctypes
 import numpy
 
 _vmedian = ctypes.cdll.LoadLibrary("./vmedian.so")
+#_vmedian = ctypes.cdll.LoadLibrary("./libvideo_median.so")
 BytePtr = ctypes.POINTER(ctypes.c_ubyte)
+#_vmedian.video_median.restype = BytePtr
 _vmedian.vmedian.restype = BytePtr
 
 
