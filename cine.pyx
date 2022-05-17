@@ -3,11 +3,14 @@ import array
 import ctypes
 import numpy
 
-_vmedian = ctypes.cdll.LoadLibrary("./vmedian.so")
-#_vmedian = ctypes.cdll.LoadLibrary("./libvideo_median.so")
+#_vmedian = ctypes.cdll.LoadLibrary("./vmedian.so")
+#BytePtr = ctypes.POINTER(ctypes.c_ubyte)
+#_vmedian.vmedian.restype = BytePtr
+
+_cine_median = ctypes.cdll.LoadLibrary("./libcine_median.so")
 BytePtr = ctypes.POINTER(ctypes.c_ubyte)
-#_vmedian.video_median.restype = BytePtr
-_vmedian.vmedian.restype = BytePtr
+_cine_median.video_median.restype = BytePtr
+
 
 
 class Cine:
@@ -95,10 +98,8 @@ class Cine:
 
     def get_video_median(self):
         fd = self.get_fileno()
+        mybytes = _cine_median.video_median(fd)
         imsize = self.image_size
-        imcount = self.image_count
-        to = self.__to
-        mybytes = _vmedian.vmedian(fd,imsize,imcount,to)
         data = mybytes[:imsize]
         data = numpy.array(data, dtype=numpy.uint8)
         frame = numpy.reshape(data, (self.image_height,self.image_width))

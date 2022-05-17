@@ -1,7 +1,9 @@
 all: vmedian.so cymods
 
-vmedian.so: vmedian.c
-	gcc vmedian.c -o vmedian.so -shared -fPIC -Werror -Wall -Wpedantic
+# vmedian.so: vmedian.c
+# 	gcc vmedian.c -o vmedian.so -shared -fPIC -Werror -Wall -Wpedantic
+
+
 
 cymods: cine.pyx common.pyx align.pyx tester.pyx tube.pyx
 	python3 setup.py build_ext --inplace

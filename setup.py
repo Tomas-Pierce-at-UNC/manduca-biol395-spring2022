@@ -9,6 +9,7 @@ setup(
          "tube.pyx",
          "cine.pyx",
          "tester.pyx"
-         ]
+         ],
+         compiler_directives={'language_level': 3}
         )
     )

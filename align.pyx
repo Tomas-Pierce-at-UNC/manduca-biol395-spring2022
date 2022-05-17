@@ -1,5 +1,5 @@
 
-from skimage import feature, measure, transform
+from skimage import feature, measure, transform, exposure
 import numpy
 
 
@@ -10,17 +10,20 @@ class Aligner:
 
     def __init__(self, reference):
 
-        self.reference = reference
+        ref = exposure.equalize_adapthist(reference)
+        self.reference = ref
         self.de = feature.SIFT()
 
-        self.de.detect_and_extract(reference)
+        self.de.detect_and_extract(ref)
 
         self.ref_keypoints = self.de.keypoints
         self.ref_descriptors = self.de.descriptors
 
     def align(self, target):
         "Align the target image to the reference image"
-        self.de.detect_and_extract(target)
+
+        brightened = exposure.equalize_adapthist(target)
+        self.de.detect_and_extract(brightened)
         keypoints = self.de.keypoints
         descriptors = self.de.descriptors
         matches = feature.match_descriptors(
