@@ -1,18 +1,100 @@
 
-EXNAME = "/home/tomas/Projects/BIOL395/CineFilesOriginal/moth23_2022-02-09_meh.cine"
-START = -3834 + 5892
-END = -1388 + 5892
-
-EX2 = "/home/tomas/Projects/BIOL395/CineFilesOriginal/moth22_2022-02-07_Cine1.cine"
-
 import numpy as np
 import scipy
 import skimage
+from matplotlib import pyplot
 
 import cine
 
 
-def find_stand(image :np.ndarray):
+import numpy as np
+from skimage import filters, morphology as morpho
+
+
+def split_zones(image: np.ndarray):
+    return [image[:, i:i+100] for i in range(0, image.shape[1], 100)]
+
+
+def get_low_li(image: np.ndarray):
+    li = filters.threshold_li(image)
+    return image < li
+
+
+def get_col_region(image: np.ndarray, colbounds: tuple) -> np.ndarray:
+    left, right = colbounds
+    sub = image[:, left:right]
+    return sub
+
+
+def select_zones_1(image: np.ndarray):
+    m1 = get_low_li(image)
+    boundaries = [(i, i+100) for i in range(0, image.shape[1], 100)]
+    mzones = split_zones(m1)
+    totals = [mz.sum(0) for mz in mzones]
+    vspans = [image.shape[0] in tot for tot in totals]
+    pos_zones = [
+        boundaries[i] for i in range(len(boundaries)) if not vspans[i]
+        ]
+    return pos_zones
+
+
+def select_zones_2(image: np.ndarray):
+    pos_zones = select_zones_1(image)
+    edges = filters.roberts(image)
+    iso = filters.threshold_isodata(edges)
+    high = edges > iso
+    counts = []
+    for boundpair in pos_zones:
+        region = get_col_region(high, boundpair)
+        pcount = region.sum()
+        counts.append(pcount)
+    which = counts.index(max(counts))
+    left, right = pos_zones[which]
+    return (left - 25, right + 25)
+
+
+def get_tallness_histogram(image: np.ndarray):
+    verticals = filters.sobel_v(image)
+    mags = np.abs(verticals)
+    threshold = filters.threshold_isodata(mags)
+    mask = mags > threshold
+    skel = morpho.skeletonize(mask)
+    heights = skel.sum(axis=0)
+    colheights = [(i, height) for i, height in enumerate(heights)]
+    return np.array(colheights)
+
+
+def restricted_histogram(image: np.ndarray):
+    left, right = select_zones_2(image)
+    tallness = get_tallness_histogram(image)
+    restricted = tallness[left:right]
+    return restricted
+
+
+def get_bounds_from_histogram(histogram: np.ndarray):
+    avg = histogram.mean(0)[1]
+    for lcol, count in histogram:
+        if count > avg:
+            break
+    for rcol, count in reversed(histogram):
+        if count > avg:
+            break
+    return (lcol, rcol)
+
+
+def get_bounds_old(image: np.ndarray):
+    reshist = restricted_histogram(image)
+    left, right = get_bounds_from_histogram(reshist)
+    return left - 5, right + 5
+
+
+def restrict_to_bounds(image: np.ndarray, bounds: tuple):
+    left, right = bounds
+    return image[:, left:right]
+
+
+
+def isolate_stand(image :np.ndarray):
     low = image - image.mean()
     gaussed = skimage.filters.gaussian(low)
     frame = np.zeros(image.shape, dtype=np.int32)
@@ -23,36 +105,97 @@ def find_stand(image :np.ndarray):
 
     tubular = frame.astype(bool)
     return tubular
-    if tubular.sum() == 0:
-        return None
-    left = None
-    right = None
-    
-    for i in range(tubular.shape[1]):
-        col = tubular[:,i]
-        if all(col):
-            left = i
-            break
-    for j in reversed(range(tubular.shape[1])):
-        col = tubular[:,j]
-        if all(col):
-            right = j
-            break
 
-    return (left, right)
+
+def get_stand_bounds(stand_mask :np.ndarray):
+    if stand_mask.sum() == 0:
+        return None
+    totals = stand_mask.sum(axis=0)
+    for left, total in enumerate(totals):
+        if total > 0:
+            break
+    right = left
+    for r, total in enumerate(totals):
+        if total > 0:
+            right = r
+    return left, right
+
+
+def find_stand(image :np.ndarray):
+    stand_mask = isolate_stand(image)
+    bounds = get_stand_bounds(stand_mask)
+    return bounds
+
+def is_left(bounds, middle):
+    return bounds[1] < middle
+
+def is_right(bounds, middle):
+    return bounds[0] > middle
+
+
+def isolate_verticals(image :np.ndarray) -> np.ndarray:
+    lines = skimage.filters.scharr_v(image)
+    mags = abs(lines)
+    iso = skimage.filters.threshold_isodata(mags)
+    mask = mags > iso
+    skel = skimage.morphology.skeletonize(mask)
+    return skel
+
+def find_tube_bounds(image :np.ndarray):
+    stand_bounds = find_stand(image)
+    middle = image.shape[1] // 2
+    vert_mask = isolate_verticals(image)
+    col_totals = vert_mask.sum(axis=0)
+    if stand_bounds is None:
+        return get_bounds_old(image)
+    elif is_left(stand_bounds, middle):
+        first_col = stand_bounds[1] + 5
+        restricted = image[:,first_col:]
+        bounds = get_bounds_old(restricted)
+        left, right = bounds
+        left = left + first_col
+        right = right + first_col
+        return left, right
+    elif is_right(stand_bounds, middle):
+        last_col = stand_bounds[0] - 5
+        restricted = image[:,:last_col]
+        return get_bounds_old(restricted)
+        #sreturn left_index - 5, right_index + 5
+    else:
+        raise Exception("Not sure what to do if stand in middle")
+
+def apply_bounds(image :np.ndarray, bounds :tuple) -> np.ndarray:
+    return image[:,bounds[0]:bounds[1]]
 
 if __name__ == '__main__':
-    video = cine.Cine(EXNAME)
-    video2 = cine.Cine(EX2)
+    EX1 = "/home/tomas/Projects/BIOL395/CineFilesOriginal/moth23_2022-02-14_Cine1.cine"
+    EX2 = "/home/tomas/Projects/BIOL395/CineFilesOriginal/moth22_2022_02_09_bad_Cine1.cine"
+    EX3 = "/home/tomas/Projects/BIOL395/CineFilesOriginal/moth26_2022-02-15_freeflight.cine"
 
-    median = video.get_video_median()
-    m2 = video2.get_video_median()
+    vid1 = cine.Cine(EX1)
+    med1 = vid1.get_video_median()
+    bounds1 = find_tube_bounds(med1)
+    vid1.close()
+    print(bounds1)
 
-    #video.close()
-    #video2.close()
-
-    bounds = find_stand(median)
-    bounds2 = find_stand(m2)
-
-    print(bounds)
+    vid2 = cine.Cine(EX2)
+    med2 = vid2.get_video_median()
+    bounds2 = find_tube_bounds(med2)
+    vid2.close()
     print(bounds2)
+
+    vid3 = cine.Cine(EX3)
+    med3 = vid3.get_video_median()
+    bounds3 = find_tube_bounds(med3)
+    vid3.close()
+    print(bounds3)
+
+    skimage.io.imshow(med1[:,bounds1[0]:bounds1[1]])
+    pyplot.show()
+
+    skimage.io.imshow(med2[:,bounds2[0]:bounds2[1]])
+    pyplot.show()
+
+    skimage.io.imshow(med3[:,bounds3[0]:bounds3[1]])
+    pyplot.show()
+            
